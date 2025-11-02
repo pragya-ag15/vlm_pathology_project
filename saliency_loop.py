@@ -1,11 +1,4 @@
 
-# saliency_loop.py
-from saliency_map import gradcam_to_pli
-out_dir = "results/saliency_maps"
-pli_dir = "results/pli_maps"
-os.makedirs(pli_dir, exist_ok=True)
-
-
 import os
 import torch
 from PIL import Image
@@ -13,6 +6,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from transformers import BlipProcessor, BlipForConditionalGeneration
+
+# saliency_loop.py
+from saliency_map import gradcam_to_pli
+out_dir = "results/saliency_maps"
+pli_dir = "results/pli_maps"
+os.makedirs(pli_dir, exist_ok=True)
+
+
 
 # ---- User / path settings ----
 img_folder = "data/pcam/sample_images/"  # folder with images
