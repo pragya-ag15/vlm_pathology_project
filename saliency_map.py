@@ -31,18 +31,51 @@ print("Generated caption:", caption)
 encoder_outputs = model.vision_model(image_tensor)
 
 
-# Decoder: predict the first token
-decoder_input_ids = torch.tensor(
-    [[model.config.decoder_start_token_id]], device=device
-)
+# ---------- Decoder & target token selection (robust) ----------
+# Choose a safe decoder-start token id:
+decoder_start = getattr(model.config, "decoder_start_token_id", None)
+if decoder_start is None:
+    # try other common fallbacks in transformers configs
+    decoder_start = getattr(model.config, "bos_token_id", None)
+if decoder_start is None:
+    decoder_start = getattr(model.config, "eos_token_id", None)
+# As a last resort use the first generated id (will still work)
+if decoder_start is None:
+    decoder_start = int(generated_ids[0, 0].item())
+
+# Prepare decoder input (single step with start token)
+decoder_input_ids = torch.tensor([[decoder_start]], device=device)
+
+# Pick target token from the generated sequence:
+# Prefer the first generated token that's not equal to decoder_start
+gen_list = generated_ids[0].tolist()
+target_token_id = None
+for tid in gen_list:
+    if tid is None:
+        continue
+    if tid != decoder_start:
+        target_token_id = int(tid)
+        break
+# fallback to final token if nothing else
+if target_token_id is None and len(gen_list) > 0:
+    target_token_id = int(gen_list[-1])
+# Final safety check
+if target_token_id is None:
+    raise RuntimeError("Could not determine a valid target_token_id from generated_ids.")
+
+print(f"DEBUG: decoder_start={decoder_start}, target_token_id={target_token_id}")
+
+# Run decoder forward for one step (start token)
 decoder_outputs = model.text_decoder(
     input_ids=decoder_input_ids,
     encoder_hidden_states=encoder_outputs.last_hidden_state,
 )
+logits = decoder_outputs.logits  # shape [batch, seq_len (=1), vocab_size]
 
-# Pick target token
-target_token_id = generated_ids[0, 0]
-score = decoder_outputs.logits[0, 0, target_token_id]
+# Score for the target token (logit corresponding to target_token_id)
+score = logits[0, 0, target_token_id]
+# --------------------------------------------------------------
+
 
 # Backprop to get gradients
 score.backward()
