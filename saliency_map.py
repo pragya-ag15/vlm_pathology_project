@@ -27,7 +27,9 @@ caption = processor.decode(generated_ids[0], skip_special_tokens=True)
 print("Generated caption:", caption)
 
 # Run encoder
-encoder_outputs = model.get_encoder()(image_tensor)
+# For BLIP, the image encoder is accessible like this:
+encoder_outputs = model.vision_model(image_tensor)
+
 
 # Decoder: predict the first token
 decoder_input_ids = torch.tensor(
